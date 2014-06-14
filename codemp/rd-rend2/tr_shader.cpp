@@ -4436,6 +4436,24 @@ static void ScanAndLoadShaderFiles( void )
 }
 
 
+shader_t *R_CreateWeatherShader ( const char *name, uint32_t stateBits, image_t *image, colorGen_t rgbGen )
+{
+	// init the default shader
+	Com_Memset( &shader, 0, sizeof( shader ) );
+	Com_Memset( &stages, 0, sizeof( stages ) );
+
+	Q_strncpyz( shader.name, name, sizeof( shader.name ) );
+	shader.vertexAttribs = ATTR_POSITION | ATTR_COLOR | ATTR_TEXCOORD0;
+	shader.cullType = CT_TWO_SIDED;
+
+	stages[0].bundle[0].image[0] = image;
+	stages[0].active = qtrue;
+	stages[0].stateBits = stateBits;
+	stages[0].rgbGen = rgbGen;
+
+	return FinishShader();
+}
+
 /*
 ====================
 CreateInternalShaders

@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 // tr_surf.c
 #include "tr_local.h"
+#include "tr_worldeffects.h"
 
 /*
 
@@ -2123,4 +2124,5 @@ void (*rb_surfaceTable[SF_NUM_SURFACE_TYPES])( void *) = {
 	(void(*)(void*))RB_SurfaceDisplayList,		// SF_DISPLAY_LIST
 	(void(*)(void*))RB_SurfaceVBOMesh,	    // SF_VBO_MESH,
 	(void(*)(void*))RB_SurfaceVBOMDVMesh,   // SF_VBO_MDVMESH
+	(void(*)(void*))RB_SurfaceParticleCloud,   // SF_PARTICLECLOUD
 };

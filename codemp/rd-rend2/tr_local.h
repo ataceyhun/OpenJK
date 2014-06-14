@@ -1243,6 +1243,7 @@ typedef enum {
 	SF_DISPLAY_LIST,
 	SF_VBO_MESH,
 	SF_VBO_MDVMESH,
+	SF_PARTICLECLOUD,
 
 	SF_NUM_SURFACE_TYPES,
 	SF_MAX = 0x7fffffff			// ensures that sizeof( surfaceType_t ) == sizeof( int )
@@ -1409,6 +1410,16 @@ typedef struct srfVBOMDVMesh_s
 	VBO_t          *vbo;
 	IBO_t          *ibo;
 } srfVBOMDVMesh_t;
+
+typedef struct srfParticleCloud_s
+{
+	surfaceType_t	surfaceType;
+
+	void			*particleCloud;
+
+	VBO_t			*vbo;
+	IBO_t			*ibo;
+} srfParticleCloud_t;
 
 extern	void (*rb_surfaceTable[SF_NUM_SURFACE_TYPES])(void *);
 
@@ -2430,6 +2441,7 @@ shader_t *R_FindShaderByName( const char *name );
 void		R_InitShaders( qboolean server );
 void		R_ShaderList_f( void );
 void    R_RemapShader(const char *oldShader, const char *newShader, const char *timeOffset);
+shader_t *R_CreateWeatherShader ( const char *name, uint32_t stateBits, image_t *image, colorGen_t rgbGen );
 
 /*
 ====================================================================

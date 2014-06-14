@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 // tr_init.c -- functions that are not called every frame
 
 #include "tr_local.h"
+#include "tr_worldeffects.h"
 #include "ghoul2/g2_local.h"
 
 bool g_bDynamicGlowSupported = false;		// Not used. Put here to keep *_glimp from whining at us. --eez
@@ -1427,6 +1428,7 @@ Ghoul2 Insert End
 	ri->Cmd_AddCommand( "gfxinfo", GfxInfo_f );
 	ri->Cmd_AddCommand( "minimize", GLimp_Minimize );
 	ri->Cmd_AddCommand( "gfxmeminfo", GfxMemInfo_f );
+	ri->Cmd_AddCommand( "r_we", R_WorldEffect_f );
 }
 
 void R_InitQueries(void)
@@ -1540,6 +1542,8 @@ void R_Init( void ) {
 
 	R_InitQueries();
 
+	R_InitWorldEffects();
+
 	GLSL_EndLoadGPUShaders (shadersStartTime);
 
 	err = qglGetError();
@@ -1562,6 +1566,7 @@ void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
 
 	ri->Printf( PRINT_ALL, "RE_Shutdown( %i )\n", destroyWindow );
 
+	ri->Cmd_RemoveCommand ("r_we");
 	ri->Cmd_RemoveCommand ("modellist");
 	ri->Cmd_RemoveCommand ("screenshot");
 	ri->Cmd_RemoveCommand ("screenshot_png");
@@ -1579,6 +1584,7 @@ void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
 
 	if ( tr.registered ) {
 		R_IssuePendingRenderCommands();
+		R_ShutdownWorldEffects();
 		R_ShutDownQueries();
 		FBO_Shutdown();
 		R_DeleteTextures();
