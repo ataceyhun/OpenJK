@@ -2509,6 +2509,7 @@ struct shaderCommands_s
 	int			numVertexes;
 	glIndex_t   minIndex;
 	glIndex_t   maxIndex;
+	GLenum		primitiveType;
 
 	int         multiDrawPrimitives;
 	GLsizei     multiDrawNumIndexes[MAX_MULTIDRAW_PRIMITIVES];
@@ -2539,7 +2540,7 @@ void RB_EndSurface(void);
 void RB_CheckOverflow( int verts, int indexes );
 #define RB_CHECKOVERFLOW(v,i) if (tess.numVertexes + (v) >= SHADER_MAX_VERTEXES || tess.numIndexes + (i) >= SHADER_MAX_INDEXES ) {RB_CheckOverflow(v,i);}
 
-void R_DrawElementsVBO( int numIndexes, glIndex_t firstIndex, glIndex_t minIndex, glIndex_t maxIndex );
+void R_DrawElementsVBO( GLenum primitiveType, int numIndexes, glIndex_t firstIndex, glIndex_t minIndex, glIndex_t maxIndex );
 void RB_StageIteratorGeneric( void );
 void RB_StageIteratorSky( void );
 void RB_StageIteratorVertexLitTexture( void );

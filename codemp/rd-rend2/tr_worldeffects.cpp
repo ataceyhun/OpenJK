@@ -40,7 +40,6 @@ namespace
 	struct Particles
 	{
 		int count;
-		int sides;
 		qboolean spawned;
 
 		float	*alphas;
@@ -53,7 +52,7 @@ namespace
 		qboolean *fadingIn;
 		qboolean *fadingOut;
 
-		Particles ( int count, int sides );
+		Particles ( int count );
 		~Particles();
 
 		void Swap ( Particles& particles );
@@ -73,7 +72,7 @@ namespace
 	class ParticleCloud
 	{
 	public:
-		ParticleCloud ( int numParticles, shader_t *particleShader, int vertexCount, ParticleCloudDescriptor& descriptor );
+		ParticleCloud ( int numParticles, shader_t *particleShader, ParticleCloudDescriptor& descriptor );
 
 		~ParticleCloud();
 
@@ -106,7 +105,7 @@ namespace
 		void AddWeatherZone ( const vec3_t mins, const vec3_t maxs );
 
 		// Creates a new particle cloud and adds it to the world
-		ParticleCloud *CreateParticleCloud ( int numParticles, shader_t *particleShader, int vertexCount, ParticleCloudDescriptor& descriptor );
+		ParticleCloud *CreateParticleCloud ( int numParticles, shader_t *particleShader, ParticleCloudDescriptor& descriptor );
 
 		// Caches inside/outside regions.
 		void Cache();
@@ -249,7 +248,7 @@ namespace
 		numWeatherZones++;
 	}
 
-	ParticleCloud *WeatherWorld::CreateParticleCloud ( int numParticles, shader_t *particleShader, int vertexCount, ParticleCloudDescriptor& descriptor )
+	ParticleCloud *WeatherWorld::CreateParticleCloud ( int numParticles, shader_t *particleShader, ParticleCloudDescriptor& descriptor )
 	{
 		if ( numParticleClouds >= 10 )
 		{
@@ -257,7 +256,7 @@ namespace
 			return NULL;
 		}
 
-		return new (&particleClouds[numParticleClouds++]) ParticleCloud (numParticles, particleShader, vertexCount, descriptor);
+		return new (&particleClouds[numParticleClouds++]) ParticleCloud (numParticles, particleShader, descriptor);
 	}
 
 	void WeatherWorld::Cache()
@@ -392,14 +391,13 @@ namespace
 		}
 	}
 
-	Particles::Particles ( int count, int sides )
+	Particles::Particles ( int count )
 		: count (count)
-		, sides (sides)
 		, spawned (qfalse)
 	{
 		alphas		= (float *)Z_Malloc (count * sizeof (float), TAG_POINTCACHE, qtrue);
-		colors		= (vec4_t *)Z_Malloc (sides * count * sizeof (vec4_t), TAG_POINTCACHE, qtrue);
-		positions	= (vec3_t *)Z_Malloc (sides * count * sizeof (vec3_t), TAG_POINTCACHE, qtrue);
+		colors		= (vec4_t *)Z_Malloc (count * sizeof (vec4_t), TAG_POINTCACHE, qtrue);
+		positions	= (vec3_t *)Z_Malloc (count * sizeof (vec3_t), TAG_POINTCACHE, qtrue);
 		velocities	= (vec3_t *)Z_Malloc (count * sizeof (vec3_t), TAG_POINTCACHE, qtrue);
 		invMasses	= (float *)Z_Malloc (count * sizeof (float), TAG_POINTCACHE, qtrue);
 
@@ -422,8 +420,8 @@ namespace
 	}
 
 	// This constructor is a big ugly, and does way too much stuff. Should consider refactoring it at some point.
-	ParticleCloud::ParticleCloud ( int numParticles, shader_t *particleShader, int vertexCount, ParticleCloudDescriptor& descriptor )
-		: particles (numParticles, vertexCount)
+	ParticleCloud::ParticleCloud ( int numParticles, shader_t *particleShader, ParticleCloudDescriptor& descriptor )
+		: particles (numParticles)
 		, desc (descriptor)
 		, particleShader (particleShader)
 	{
@@ -432,7 +430,7 @@ namespace
 			particles.invMasses[i] = 1.0f / flrand (5.0f, 10.0f);
 		}
 
-		int numVertices = numParticles * vertexCount;
+		int numVertices = numParticles;
 
 		surface.surfaceType = SF_PARTICLECLOUD;
 		surface.particleCloud = static_cast<void *>(this);
@@ -444,24 +442,9 @@ namespace
 			indices[i] = i;
 		}
 
-		if ( vertexCount == 3 )
+		for ( int i = 0; i < numVertices; i++ )
 		{
-			for ( int i = 0; i < numVertices; i += 3 )
-			{
-				VectorSet2 (texcoords[i + 0], 1.0f, 0.0f);
-				VectorSet2 (texcoords[i + 1], 0.0f, 1.0f);
-				VectorSet2 (texcoords[i + 2], 0.0f, 0.0f);
-			}
-		}
-		else // if ( vertexCount == 4 )
-		{
-			for ( int i = 0; i < numVertices; i += 4 )
-			{
-				VectorSet2 (texcoords[i + 0], 0.0f, 0.0f);
-				VectorSet2 (texcoords[i + 1], 1.0f, 0.0f);
-				VectorSet2 (texcoords[i + 2], 1.0f, 1.0f);
-				VectorSet2 (texcoords[i + 3], 0.0f, 1.0f);
-			}
+			VectorSet2 (texcoords[i], 1.0f, 0.0f);
 		}
 
 		size_t vertexSize = sizeof (particles.positions[0]) + sizeof (particles.colors[0]) + sizeof (*texcoords);
@@ -524,45 +507,19 @@ namespace
 		// Spawn if necessary
 		if ( !particles.spawned )
 		{
-			if ( particles.sides == 3 )
+			for ( int i = 0; i < particles.count; i++ )
 			{
-				// Triangles
-				for ( int i = 0; i < particles.count; i++ )
-				{
-					particles.positions[i * particles.sides][0] = flrand (
-						viewOrigin[0] + spawnRangeMins,
-						viewOrigin[0] + spawnRangeMaxs);
+				particles.positions[i][0] = flrand (
+					viewOrigin[0] + spawnRangeMins,
+					viewOrigin[0] + spawnRangeMaxs);
 
-					particles.positions[i * particles.sides][1] = flrand (
-						viewOrigin[1] + spawnRangeMins,
-						viewOrigin[1] + spawnRangeMaxs);
+				particles.positions[i][1] = flrand (
+					viewOrigin[1] + spawnRangeMins,
+					viewOrigin[1] + spawnRangeMaxs);
 
-					particles.positions[i * particles.sides][2] = flrand (
-						viewOrigin[2] + spawnRangeMins,
-						viewOrigin[2] + spawnRangeMaxs);
-
-					VectorAdd (particles.positions[i * particles.sides], viewLeft, particles.positions[i * particles.sides + 1]);
-					VectorAdd (particles.positions[i * particles.sides], viewLeftUp, particles.positions[i * particles.sides + 2]);
-				}
-			}
-			else //if ( particles.sides == 4 )
-			{
-				// Quads
-				for ( int i = 0; i < particles.count; i++ )
-				{
-					vec3_t center;
-
-					VectorSet (center,
-						flrand (viewOrigin[0] + spawnRangeMins, viewOrigin[0] + spawnRangeMaxs),
-						flrand (viewOrigin[1] + spawnRangeMins, viewOrigin[1] + spawnRangeMaxs),
-						flrand (viewOrigin[2] + spawnRangeMins, viewOrigin[2] + spawnRangeMaxs));
-
-					VectorSubtract (center, viewLeftDown, particles.positions[i * particles.sides + 0]);
-					VectorSubtract (center, viewLeftUp, particles.positions[i * particles.sides + 1]);
-
-					VectorAdd (center, viewLeftDown, particles.positions[i * particles.sides + 2]);
-					VectorAdd (center, viewLeftUp, particles.positions[i * particles.sides + 3]);
-				}
+				particles.positions[i][2] = flrand (
+					viewOrigin[2] + spawnRangeMins,
+					viewOrigin[2] + spawnRangeMaxs);
 			}
 
 			particles.spawned = qtrue;
@@ -572,7 +529,6 @@ namespace
 		for ( int i = 0; i < particles.count; i++ )
 		{
 			vec3_t accel;
-			vec3_t viewDirection;
 
 			particles.rendering[i] = qtrue;
 
@@ -585,17 +541,16 @@ namespace
 
 			particles.alphas[i] = 0.5f;
 
-			for ( int j = 0; j < particles.sides; j++ )
-			{
-				// position' = position + dt * velocity
-				VectorMA (
-					particles.positions[i * particles.sides + j],
-					dt,
-					particles.velocities[i],
-					particles.positions[i * particles.sides + j]);
+#if 0
+			// position' = position + dt * velocity
+			VectorMA (
+				particles.positions[i],
+				dt,
+				particles.velocities[i],
+				particles.positions[i]);
+#endif
 
-				VectorScale4 (desc.color, particles.alphas[i], particles.colors[i * particles.sides + j]);
-			}
+			VectorScale4 (desc.color, particles.alphas[i], particles.colors[i]);
 		}
 	}
 
@@ -626,12 +581,13 @@ namespace
 
 			indices[j] = j;
 			numRendering++;
+			j++;
 		}
 
-		GLbitfield mapBits = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
+		GLbitfield mapBits = GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
 		void *data = qglMapBufferRange (GL_ARRAY_BUFFER, 0, surf.vbo->vertexesSize, mapBits);
 
-		for ( int i = 0; i < particles.count * particles.sides; i++ )
+		for ( int i = 0; i < particles.count; i++ )
 		{
 			size_t offset = 0;
 
@@ -650,6 +606,7 @@ namespace
 		qglUnmapBuffer (GL_ARRAY_BUFFER);
 
 		tess.useInternalVBO = qfalse;
+		tess.primitiveType = GL_POINTS;
 
 		tess.numIndexes	+= numRendering;
 		tess.numVertexes += numRendering;
@@ -705,7 +662,7 @@ static shader_t *Weather_CreateShader ( const char *name, const char *imagePath,
 		return NULL;
 	}
 
-	return R_CreateWeatherShader (name, GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE, image, rgbGen);
+	return R_CreateWeatherShader (name, GLS_SRCBLEND_SRC_ALPHA | GLS_DSTBLEND_ONE_MINUS_SRC_ALPHA, image, rgbGen);
 }
 
 static void WeatherCommand_Die ( const char *, WeatherWorldContext& )
@@ -767,9 +724,9 @@ static void WeatherCommand_AddLightRain ( const char *, WeatherWorldContext& con
 	desc.gravity = 150.0f;
 	desc.height = 80.0f;
 	desc.width = 1.2f;
-	VectorSet4 (desc.color, 127, 127, 127, 127);
+	VectorSet4 (desc.color, 0, 255, 0, 255);
 	
-	context.world->CreateParticleCloud (500, shader, 3, desc);
+	context.world->CreateParticleCloud (500, shader, desc);
 }
 
 static void WeatherCommand_AddRain ( const char *, WeatherWorldContext& context )
