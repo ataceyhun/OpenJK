@@ -172,6 +172,7 @@ void RB_InstantQuad2(vec4_t quadVerts[4], vec2_t texCoords[4])
 {
 //	GLimp_LogComment("--- RB_InstantQuad2 ---\n");					// FIXME: REIMPLEMENT (wasn't implemented in ioq3 to begin with) --eez
 
+	tess.primitiveType = GL_TRIANGLES;
 	tess.numVertexes = 0;
 	tess.numIndexes = 0;
 	tess.firstIndex = 0;
