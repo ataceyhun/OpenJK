@@ -1095,16 +1095,40 @@ typedef enum
 	UNIFORM_COUNT
 } uniform_t;
 
+typedef enum gpuShaderType_s
+{
+	SHADERTYPE_VERTEX,
+	SHADERTYPE_GEOMETRY,
+	SHADERTYPE_FRAGMENT,
+
+	NUM_SHADERTYPES
+} gpuShaderType_t;
+
+typedef struct gpuShader_s
+{
+	gpuShaderType_t type;
+	const char *shaderPath;
+	const char *fallback;
+} gpuShader_t;
+
+typedef struct gpuShaderProgram_s
+{
+	const char *name;
+
+	int numShaders;
+	const gpuShader_t *shaders;
+} gpuShaderProgram_t;
+
 // shaderProgram_t represents a pair of one
 // GLSL vertex and one GLSL fragment shader
 typedef struct shaderProgram_s
 {
 	char *name;
 
-	GLuint     program;
-	GLuint     vertexShader;
-	GLuint     fragmentShader;
-	uint32_t        attribs;	// vertex array attributes
+	GLuint program;
+	int numShaders;
+	GLuint *shaders;
+	uint32_t attribs; // vertex array attributes
 
 	// uniform parameters
 	int numUniforms;

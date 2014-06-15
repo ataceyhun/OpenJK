@@ -6,7 +6,10 @@ if(NOT InOpenJK)
 endif(NOT InOpenJK)
 
 set(MPRend2IncludeDirectories ${MPDir})
-set(MPRend2IncludeDirectories ${MPRend2IncludeDirectories} "${MPDir}/rd-rend2")
+set(MPRend2IncludeDirectories ${MPRend2IncludeDirectories}
+	"${MPDir}/rd-rend2"
+	${CMAKE_CURRENT_BINARY_DIR} # For glsl_shaders.h
+	)
 
 set(MPRend2Files
 	"${MPDir}/rd-rend2/iqm.h"
@@ -186,8 +189,10 @@ else(WIN32)
 	set(MPRend2Files ${MPRend2Files} ${MPRend2SysFiles})
 endif(WIN32)
 
-source_group("renderer" FILES ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.cpp)
-set(MPRend2Files ${MPRend2Files} ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.cpp)
+source_group("renderer" FILES ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.cpp ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.h)
+set(MPRend2Files ${MPRend2Files}
+	${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.cpp
+	${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.h)
 
 set(MPRend2IncludeDirectories ${MPRend2IncludeDirectories} ${OpenJKLibDir})
 add_library(${MPRend2} SHARED ${MPRend2Files})
@@ -217,6 +222,6 @@ target_link_libraries(${MPRend2} ${MPRend2Libraries})
 # GLSL shader file generator
 add_executable(compact_glsl ${MPDir}/rd-rend2/glsl/compact.cpp)
 add_custom_command(
-	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.cpp
-	COMMAND compact_glsl ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.cpp ${MPRend2GLSLFiles}
+	OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.cpp ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders.h
+	COMMAND compact_glsl ${CMAKE_CURRENT_BINARY_DIR}/glsl_shaders ${MPRend2GLSLFiles}
 	DEPENDS compact_glsl ${MPRend2GLSLFiles})
