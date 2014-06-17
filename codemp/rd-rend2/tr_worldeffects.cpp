@@ -565,11 +565,6 @@ namespace
 	void ParticleCloud::Render ( const srfParticleCloud_t& surf ) const
 	{
 		RB_EndSurface();
-		RB_BeginSurface (particleShader, tess.fogNum, tess.cubemapIndex);
-
-		// Update VBOs
-		R_BindVBO (surf.vbo);
-		R_BindIBO (surf.ibo);
 
 		int numRendering = 0;
 		for ( int i = 0, j = 0; i < particles.count; i++ )
@@ -583,6 +578,10 @@ namespace
 			numRendering++;
 			j++;
 		}
+
+		// Update VBOs
+		R_BindVBO (surf.vbo);
+		R_BindIBO (surf.ibo);
 
 		GLbitfield mapBits = GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
 		void *data = qglMapBufferRange (GL_ARRAY_BUFFER, 0, surf.vbo->vertexesSize, mapBits);
@@ -605,15 +604,20 @@ namespace
 
 		qglUnmapBuffer (GL_ARRAY_BUFFER);
 
-		tess.useInternalVBO = qfalse;
-		tess.primitiveType = GL_POINTS;
+		// Update state
+		GL_Cull (CT_TWO_SIDED);
+		GL_Bind (particleShader->stages[0]->bundle[0].image[0]);
+		GL_State (GLS_DEFAULT);
 
-		tess.numIndexes	+= numRendering;
-		tess.numVertexes += numRendering;
-		tess.minIndex = 0;
-		tess.maxIndex = numRendering;
+		GLSL_VertexAttribsState (ATTR_POSITION | ATTR_TEXCOORD0 | ATTR_COLOR);
+		GLSL_BindProgram (&tr.weatherRainShader);
 
-		RB_EndSurface();
+		// Set uniforms
+		GLSL_SetUniformMatrix16(&tr.weatherRainShader, UNIFORM_MODELVIEWPROJECTIONMATRIX, glState.modelviewProjection);
+
+		// Draw!
+		qglEnable (GL_PROGRAM_POINT_SIZE);
+		R_DrawElementsVBO (GL_POINTS, numRendering, 0, 0, numRendering);
 	}
 }
 

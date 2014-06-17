@@ -2074,6 +2074,7 @@ typedef struct trGlobals_s {
 	shaderProgram_t testcubeShader;
 	shaderProgram_t gaussianBlurShader[2];
 	shaderProgram_t glowCompositeShader;
+	shaderProgram_t weatherRainShader;
 
 
 	// -----------------------------------------

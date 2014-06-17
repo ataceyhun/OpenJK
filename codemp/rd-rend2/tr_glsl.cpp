@@ -673,6 +673,8 @@ void GLSL_InitUniforms(shaderProgram_t *program)
 void GLSL_FinishGPUShader(shaderProgram_t *program)
 {
 	GLSL_ValidateProgram(program->program);
+
+	ri->Printf (PRINT_DEVELOPER, "Uniforms for %s\n", program->name);
 	GLSL_ShowProgramUniforms(program->program);
 	GL_CheckErrors();
 }
@@ -1296,6 +1298,14 @@ int GLSL_BeginLoadGPUShaders(void)
 		ri->Error(ERR_FATAL, "Could not load gaussian_blur (Y-direction) shader!");
 	}
 
+	attribs = ATTR_POSITION | ATTR_TEXCOORD0 | ATTR_COLOR;
+	extradefines[0] = '\0';
+
+	if (!GLSL_BeginLoadGPUShader(&tr.weatherRainShader, &weather_rain_program, attribs, extradefines))
+	{
+		ri->Error (ERR_FATAL, "Could not load the rain shader!");
+	}
+
 	return startTime;
 }
 
@@ -1596,6 +1606,19 @@ void GLSL_EndLoadGPUShaders ( int startTime )
 
 		numEtcShaders++;
 	}
+
+	if (!GLSL_EndLoadGPUShader (&tr.weatherRainShader))
+	{
+		ri->Error (ERR_FATAL, "Could not load rain shader!");
+	}
+
+	GLSL_InitUniforms (&tr.weatherRainShader);
+
+#if defined(_DEBUG)
+		GLSL_FinishGPUShader (&tr.weatherRainShader);
+#endif
+
+		numEtcShaders++;
 
 #if 0
 	attribs = ATTR_POSITION | ATTR_TEXCOORD0;
