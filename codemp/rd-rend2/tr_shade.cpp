@@ -40,9 +40,9 @@ R_DrawElements
 ==================
 */
 
-void R_DrawElementsVBO( GLenum primitiveType, int numIndexes, glIndex_t firstIndex, glIndex_t minIndex, glIndex_t maxIndex )
+void R_DrawElementsVBO( GLenum primitiveType, int numIndexes, glIndex_t firstIndex, int numInstances )
 {
-	qglDrawRangeElements(primitiveType, minIndex, maxIndex, numIndexes, GL_INDEX_TYPE, BUFFER_OFFSET(firstIndex * sizeof(glIndex_t)));
+	qglDrawElementsInstanced(primitiveType, numIndexes, GL_INDEX_TYPE, BUFFER_OFFSET(firstIndex * sizeof(glIndex_t)), numInstances);
 }
 
 
@@ -151,7 +151,7 @@ static void DrawTris (shaderCommands_t *input) {
 		}
 		else
 		{
-			R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, input->minIndex, input->maxIndex);
+			R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->maxIndex, 1);
 		}
 	}
 
@@ -427,7 +427,7 @@ static void ProjectDlightTexture( void ) {
 		}
 		else
 		{
-			R_DrawElementsVBO(tess.primitiveType, tess.numIndexes, tess.firstIndex, tess.minIndex, tess.maxIndex);
+			R_DrawElementsVBO(tess.primitiveType, tess.numIndexes, tess.firstIndex, 1);
 		}
 
 		backEnd.pc.c_totalIndexes += tess.numIndexes;
@@ -901,7 +901,7 @@ static void ForwardDlight( void ) {
 		}
 		else
 		{
-			R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, input->minIndex, input->maxIndex);
+			R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, 1);
 		}
 
 		backEnd.pc.c_totalIndexes += tess.numIndexes;
@@ -977,7 +977,7 @@ static void ProjectPshadowVBOGLSL( void ) {
 		}
 		else
 		{
-			R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, input->minIndex, input->maxIndex);
+			R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, 1);
 		}
 
 		backEnd.pc.c_totalIndexes += tess.numIndexes;
@@ -1063,7 +1063,7 @@ static void RB_FogPass( void ) {
 	}
 	else
 	{
-		R_DrawElementsVBO(tess.primitiveType, tess.numIndexes, tess.firstIndex, tess.minIndex, tess.maxIndex);
+		R_DrawElementsVBO(tess.primitiveType, tess.numIndexes, tess.firstIndex, 1);
 	}
 }
 
@@ -1584,7 +1584,7 @@ static void RB_IterateStagesGeneric( shaderCommands_t *input )
 		}
 		else
 		{
-			R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, input->minIndex, input->maxIndex);
+			R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, 1);
 		}
 
 		// allow skipping out to show just lightmaps during development
@@ -1648,7 +1648,7 @@ static void RB_RenderShadowmap( shaderCommands_t *input )
 			}
 			else
 			{
-				R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, input->minIndex, input->maxIndex);
+				R_DrawElementsVBO(input->primitiveType, input->numIndexes, input->firstIndex, 1);
 			}
 		}
 	}

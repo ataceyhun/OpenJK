@@ -206,7 +206,7 @@ void RB_InstantQuad2(vec4_t quadVerts[4], vec2_t texCoords[4])
 
 	GLSL_VertexAttribsState(ATTR_POSITION | ATTR_TEXCOORD0);
 
-	R_DrawElementsVBO(tess.primitiveType, tess.numIndexes, tess.firstIndex, tess.minIndex, tess.maxIndex);
+	R_DrawElementsVBO(tess.primitiveType, tess.numIndexes, tess.firstIndex, 1);
 
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;
@@ -661,7 +661,7 @@ static void RB_SurfaceBeam( void )
 					
 	GLSL_SetUniformVec4(sp, UNIFORM_COLOR, colorRed);
 
-	R_DrawElementsVBO(tess.primitiveType, tess.numIndexes, tess.firstIndex, tess.minIndex, tess.maxIndex);
+	R_DrawElementsVBO(tess.primitiveType, tess.numIndexes, tess.firstIndex, 1);
 
 	tess.numIndexes = 0;
 	tess.numVertexes = 0;

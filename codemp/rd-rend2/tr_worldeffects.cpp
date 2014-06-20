@@ -92,6 +92,7 @@ namespace
 		glIndex_t	*indices;
 		vec2_t		*texcoords;
 		srfParticleCloud_t surface;
+		mutable int vertexBufferOffset;
 	};
 
 	// This class contains all the 'weather zones' found in the map.
@@ -424,6 +425,7 @@ namespace
 		: particles (numParticles)
 		, desc (descriptor)
 		, particleShader (particleShader)
+		, vertexBufferOffset (0)
 	{
 		for ( int i = 0; i < numParticles; i++ )
 		{
@@ -450,7 +452,9 @@ namespace
 		size_t vertexSize = sizeof (particles.positions[0]) + sizeof (particles.colors[0]) + sizeof (*texcoords);
 
 		surface.ibo = R_CreateIBO ((byte *)indices, sizeof (glIndex_t) * numVertices, VBO_USAGE_DYNAMIC);
-		surface.vbo = R_CreateVBO (NULL, numVertices * vertexSize, VBO_USAGE_DYNAMIC);
+
+		// Allocate 3x as much memory so we can use different regions of the buffer on different frames.
+		surface.vbo = R_CreateVBO (NULL, numVertices * vertexSize * 3, VBO_USAGE_DYNAMIC);
 
 		surface.vbo->ofs_xyz = 0;
 		surface.vbo->ofs_vertexcolor = sizeof (particles.positions[0]);
@@ -470,8 +474,6 @@ namespace
 	void ParticleCloud::Update ( const WeatherWorldContext& context, float dt )
 	{
 		vec3_t viewOrigin;
-		vec3_t viewLeft, viewForward, viewDown;
-		vec3_t viewLeftUp, viewLeftDown;
 
 		const float spawnRangeMins = -500.0f * 1.25f;
 		const float spawnRangeMaxs =  500.0f * 1.25f;
@@ -483,20 +485,6 @@ namespace
 
 		// Decompose camera matrix
 		VectorCopy (backEnd.viewParms.ori.origin, viewOrigin);
-		VectorCopy (backEnd.viewParms.ori.axis[0], viewForward);
-		VectorCopy (backEnd.viewParms.ori.axis[1], viewLeft);
-		VectorCopy (backEnd.viewParms.ori.axis[2], viewDown);
-
-		VectorScale (viewLeft, desc.width, viewLeft);
-		VectorScale (viewDown, desc.height, viewDown);
-
-		if ( desc.alignWithVelocity )
-		{
-			VectorScale (viewDown, -1.0f, viewDown);
-		}
-
-		VectorSubtract (viewLeft, viewDown, viewLeftUp);
-		VectorAdd (viewLeft, viewDown, viewLeftDown);
 
 		// Calculate global acceleration of all particles
 		vec3_t force;
@@ -509,17 +497,9 @@ namespace
 		{
 			for ( int i = 0; i < particles.count; i++ )
 			{
-				particles.positions[i][0] = flrand (
-					viewOrigin[0] + spawnRangeMins,
-					viewOrigin[0] + spawnRangeMaxs);
-
-				particles.positions[i][1] = flrand (
-					viewOrigin[1] + spawnRangeMins,
-					viewOrigin[1] + spawnRangeMaxs);
-
-				particles.positions[i][2] = flrand (
-					viewOrigin[2] + spawnRangeMins,
-					viewOrigin[2] + spawnRangeMaxs);
+				particles.positions[i][0] = flrand (spawnRangeMins, spawnRangeMaxs);
+				particles.positions[i][1] = flrand (spawnRangeMins, spawnRangeMaxs);
+				particles.positions[i][2] = flrand (2.0f * spawnRangeMins, 2.0f * spawnRangeMaxs);
 			}
 
 			particles.spawned = qtrue;
@@ -583,8 +563,8 @@ namespace
 		R_BindVBO (surf.vbo);
 		R_BindIBO (surf.ibo);
 
-		GLbitfield mapBits = GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT;
-		void *data = qglMapBufferRange (GL_ARRAY_BUFFER, 0, surf.vbo->vertexesSize, mapBits);
+		GLbitfield mapBits = GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_INVALIDATE_RANGE_BIT;
+		void *data = qglMapBufferRange (GL_ARRAY_BUFFER, vertexBufferOffset, surf.vbo->vertexesSize / 3, mapBits);
 
 		for ( int i = 0; i < particles.count; i++ )
 		{
@@ -604,10 +584,12 @@ namespace
 
 		qglUnmapBuffer (GL_ARRAY_BUFFER);
 
+		vertexBufferOffset += surf.vbo->vertexesSize / 3;
+		vertexBufferOffset = vertexBufferOffset % surf.vbo->vertexesSize;
+
 		// Update state
-		GL_Cull (CT_TWO_SIDED);
 		GL_Bind (particleShader->stages[0]->bundle[0].image[0]);
-		GL_State (GLS_DEFAULT);
+		GL_State (GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE);
 
 		GLSL_VertexAttribsState (ATTR_POSITION | ATTR_TEXCOORD0 | ATTR_COLOR);
 		GLSL_BindProgram (&tr.weatherRainShader);
@@ -615,9 +597,15 @@ namespace
 		// Set uniforms
 		GLSL_SetUniformMatrix16(&tr.weatherRainShader, UNIFORM_MODELVIEWPROJECTIONMATRIX, glState.modelviewProjection);
 
+		GLSL_SetUniformVec3(&tr.weatherRainShader, UNIFORM_VIEWFORWARD, backEnd.refdef.viewaxis[0]);
+		GLSL_SetUniformVec3(&tr.weatherRainShader, UNIFORM_VIEWLEFT, backEnd.refdef.viewaxis[1]);
+		GLSL_SetUniformVec3(&tr.weatherRainShader, UNIFORM_VIEWUP, backEnd.refdef.viewaxis[2]);
+		GLSL_SetUniformVec3(&tr.weatherRainShader, UNIFORM_VIEWORIGIN, backEnd.refdef.vieworg);
+
+		GLSL_SetUniformFloat(&tr.weatherRainShader, UNIFORM_TIME, backEnd.refdef.floatTime);
+
 		// Draw!
-		qglEnable (GL_PROGRAM_POINT_SIZE);
-		R_DrawElementsVBO (GL_POINTS, numRendering, 0, 0, numRendering);
+		R_DrawElementsVBO (GL_POINTS, numRendering, 0, 100);
 	}
 }
 
@@ -730,7 +718,7 @@ static void WeatherCommand_AddLightRain ( const char *, WeatherWorldContext& con
 	desc.width = 1.2f;
 	VectorSet4 (desc.color, 0, 255, 0, 255);
 	
-	context.world->CreateParticleCloud (500, shader, desc);
+	context.world->CreateParticleCloud (200, shader, desc);
 }
 
 static void WeatherCommand_AddRain ( const char *, WeatherWorldContext& context )
