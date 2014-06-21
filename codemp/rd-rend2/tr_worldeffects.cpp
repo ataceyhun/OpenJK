@@ -453,8 +453,38 @@ namespace
 
 		surface.ibo = R_CreateIBO ((byte *)indices, sizeof (glIndex_t) * numVertices, VBO_USAGE_DYNAMIC);
 
-		// Allocate 3x as much memory so we can use different regions of the buffer on different frames.
-		surface.vbo = R_CreateVBO (NULL, numVertices * vertexSize * 3, VBO_USAGE_DYNAMIC);
+		const float spawnRangeMins = -500.0f * 1.25f;
+		const float spawnRangeMaxs =  500.0f * 1.25f;
+
+		for ( int i = 0; i < particles.count; i++ )
+		{
+			particles.positions[i][0] = flrand (spawnRangeMins, spawnRangeMaxs);
+			particles.positions[i][1] = flrand (spawnRangeMins, spawnRangeMaxs);
+			particles.positions[i][2] = flrand (2.0f * spawnRangeMins, 2.0f * spawnRangeMaxs);
+
+			VectorCopy4 (desc.color, particles.colors[i]);
+		}
+
+		void *base = ri->Hunk_AllocateTempMemory (numVertices * vertexSize);
+		void *data = base;
+		for ( int i = 0; i < numVertices; i++ )
+		{
+			size_t offset = 0;
+
+			memcpy ((char *)data + offset, particles.positions[i], sizeof (particles.positions[0]));
+			offset += sizeof (particles.positions[0]);
+
+			memcpy ((char *)data + offset, particles.colors[i], sizeof (particles.colors[0]));
+			offset += sizeof (particles.colors[0]);
+
+			memcpy ((char *)data + offset, texcoords[i], sizeof (texcoords[0]));
+			offset += sizeof (texcoords[0]);
+
+			data = (char *)data + offset;
+		}
+
+		surface.vbo = R_CreateVBO ((byte *)base, numVertices * vertexSize, VBO_USAGE_DYNAMIC);
+		ri->Hunk_FreeTempMemory (base);
 
 		surface.vbo->ofs_xyz = 0;
 		surface.vbo->ofs_vertexcolor = sizeof (particles.positions[0]);
@@ -473,64 +503,9 @@ namespace
 
 	void ParticleCloud::Update ( const WeatherWorldContext& context, float dt )
 	{
-		vec3_t viewOrigin;
-
-		const float spawnRangeMins = -500.0f * 1.25f;
-		const float spawnRangeMaxs =  500.0f * 1.25f;
-
 		if ( !context.running )
 		{
 			return;
-		}
-
-		// Decompose camera matrix
-		VectorCopy (backEnd.viewParms.ori.origin, viewOrigin);
-
-		// Calculate global acceleration of all particles
-		vec3_t force;
-		VectorClear (force);
-		force[2] = -desc.gravity;
-		VectorAdd (force, context.windVelocity, force);
-
-		// Spawn if necessary
-		if ( !particles.spawned )
-		{
-			for ( int i = 0; i < particles.count; i++ )
-			{
-				particles.positions[i][0] = flrand (spawnRangeMins, spawnRangeMaxs);
-				particles.positions[i][1] = flrand (spawnRangeMins, spawnRangeMaxs);
-				particles.positions[i][2] = flrand (2.0f * spawnRangeMins, 2.0f * spawnRangeMaxs);
-			}
-
-			particles.spawned = qtrue;
-		}
-
-		// Update all particles
-		for ( int i = 0; i < particles.count; i++ )
-		{
-			vec3_t accel;
-
-			particles.rendering[i] = qtrue;
-
-			// accel = force / mass
-			VectorScale (force, particles.invMasses[i], accel);
-
-			// velocity' = 0.7 * (accel + velocity)
-			VectorAdd (particles.velocities[i], accel, particles.velocities[i]);
-			VectorScale (particles.velocities[i], 0.7f, particles.velocities[i]);
-
-			particles.alphas[i] = 0.5f;
-
-#if 0
-			// position' = position + dt * velocity
-			VectorMA (
-				particles.positions[i],
-				dt,
-				particles.velocities[i],
-				particles.positions[i]);
-#endif
-
-			VectorScale4 (desc.color, particles.alphas[i], particles.colors[i]);
 		}
 	}
 
@@ -544,48 +519,12 @@ namespace
 
 	void ParticleCloud::Render ( const srfParticleCloud_t& surf ) const
 	{
+		// Finish rendering the previous surface
 		RB_EndSurface();
-
-		int numRendering = 0;
-		for ( int i = 0, j = 0; i < particles.count; i++ )
-		{
-			if ( !particles.rendering[i] )
-			{
-				continue;
-			}
-
-			indices[j] = j;
-			numRendering++;
-			j++;
-		}
 
 		// Update VBOs
 		R_BindVBO (surf.vbo);
 		R_BindIBO (surf.ibo);
-
-		GLbitfield mapBits = GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT | GL_MAP_INVALIDATE_RANGE_BIT;
-		void *data = qglMapBufferRange (GL_ARRAY_BUFFER, vertexBufferOffset, surf.vbo->vertexesSize / 3, mapBits);
-
-		for ( int i = 0; i < particles.count; i++ )
-		{
-			size_t offset = 0;
-
-			memcpy ((char *)data + offset, particles.positions[i], sizeof (particles.positions[0]));
-			offset += sizeof (particles.positions[0]);
-
-			memcpy ((char *)data + offset, particles.colors[i], sizeof (particles.colors[0]));
-			offset += sizeof (particles.colors[0]);
-
-			memcpy ((char *)data + offset, texcoords[i], sizeof (texcoords[0]));
-			offset += sizeof (texcoords[0]);
-
-			data = (char *)data + offset;
-		}
-
-		qglUnmapBuffer (GL_ARRAY_BUFFER);
-
-		vertexBufferOffset += surf.vbo->vertexesSize / 3;
-		vertexBufferOffset = vertexBufferOffset % surf.vbo->vertexesSize;
 
 		// Update state
 		GL_Bind (particleShader->stages[0]->bundle[0].image[0]);
@@ -605,7 +544,7 @@ namespace
 		GLSL_SetUniformFloat(&tr.weatherRainShader, UNIFORM_TIME, backEnd.refdef.floatTime);
 
 		// Draw!
-		R_DrawElementsVBO (GL_POINTS, numRendering, 0, 100);
+		R_DrawElementsVBO (GL_POINTS, particles.count, 0, 100);
 	}
 }
 
